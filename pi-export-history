@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# pi-export-history: convert pi session JSONL -> readable markdown (incremental)
+# usage: pi-export-history [-t]   (-t includes toolResult blocks; default omits them)
+set -euo pipefail
+
+TR=0
+case "${1:-}" in
+  -t|--with-tool-results) TR=1 ;;
+  "") ;;
+  *) echo "usage: pi-export-history [-t]" >&2; exit 1 ;;
+esac
+
+SRC="$HOME/.pi/agent/sessions"
+if [ $TR = 1 ]; then
+  DST="$HOME/.pi/agent/sessions-md-full"
+else
+  DST="$HOME/.pi/agent/sessions-md"
+fi
+
+n=0
+find "$SRC" -name '*.jsonl' | while read -r f; do
+  rel="${f#"$SRC"/}"; rel="${rel%.jsonl}"
+  out="$DST/$rel.md"
+  # incremental: skip sessions whose markdown is already current
+  [ -f "$out" ] && [ "$out" -nt "$f" ] && continue
+  mkdir -p "$(dirname "$out")"
+  cwd=$(head -1 "$f" | jq -r '.cwd // empty' 2>/dev/null)
+  jq -r --arg tr "$TR" 'select(.message != null and .message.content != null) | .message as $m |
+    select($tr == "1" or $m.role != "toolResult") |
+    ($m.role | if . == "toolResult" then 200 else 2000 end) as $cap |
+    [if ($m.content | type) == "string" then $m.content
+     else [$m.content[]?
+           | select(.type == "text") | .text
+           | select(test("<!DOCTYPE|<html"; "i") | not)
+           | if length > $cap then .[0:$cap] + " …[truncated]" else . end]
+          | join("\n")
+     end] | join("\n") | select(length > 0) | "## \($m.role)\n\n\(.)\n"' \
+    "$f" 2>/dev/null > "$out.tmp" || { rm -f "$out.tmp"; continue; }
+  if [ -s "$out.tmp" ]; then
+    [ -n "$cwd" ] && sed -i '' "1s|^|_session cwd: ${cwd}_\n\n|" "$out.tmp"
+    mv "$out.tmp" "$out" && n=$((n+1))
+  else
+    rm -f "$out.tmp"
+  fi
+done
+echo "exported to $DST"

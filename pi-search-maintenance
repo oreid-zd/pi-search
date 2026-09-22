@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# pi-search-maintenance: nightly refresh of the pi-search semantic index.
+# 1. prune exported markdown whose source session was deleted
+# 2. incremental export (default lean corpus)
+# 3. qmd re-index + embed new/changed chunks
+set -euo pipefail
+
+SRC="$HOME/.pi/agent/sessions"
+MD="$HOME/.pi/agent/sessions-md"
+
+# remove exported .md files with no matching .jsonl (prunes forks/run dirs too)
+find "$MD" -name '*.md' | while read -r m; do
+  rel="${m#"$MD"/}"; rel="${rel%.md}.jsonl"
+  [ -f "$SRC/$rel" ] || rm -f "$m"
+done
+find "$MD" -type d -empty -delete 2>/dev/null || true
+
+~/.local/bin/pi-export-history >/dev/null
+qmd update -c pi-history >/dev/null
+qmd embed -c pi-history
