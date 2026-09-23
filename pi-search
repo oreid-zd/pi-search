@@ -2,7 +2,7 @@
 # pi-search: search and read pi (coding agent) session history
 set -euo pipefail
 
-VERSION="1.4.0"
+VERSION="1.0.0"
 COL=pi-history
 MD="$HOME/.pi/agent/sessions-md"
 SELF="$(basename "$0")"
