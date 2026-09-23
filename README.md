@@ -42,6 +42,7 @@ pi-search -n 20 --all refactor      # top 20, or everything with --all
 pi-search -t "stack trace"          # include tool results (default: user+assistant only)
 pi-search -v "that caching bug"     # semantic search (qmd embeddings)
 pi-search export                    # re-export all sessions to markdown
+pi-search resume <transcript.md>    # resume a session in pi (also: ctrl-o in the picker)
 pi-search -v --reindex "query"      # rebuild the semantic index first
 pi-search --help
 ```
@@ -59,6 +60,7 @@ yellow → orange → red as relevance climbs.
 | key | action |
 |---|---|
 | `enter` | open the match in the transcript viewer |
+| `ctrl-o` | resume the selected session in pi |
 | `esc` | cancel |
 | `ctrl-r` | refresh the semantic index (semantic mode) |
 | `n` / `N` | next / previous highlighted match (in nvim) |

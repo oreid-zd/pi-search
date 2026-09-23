@@ -2,7 +2,7 @@
 # pi-search: search and read pi (coding agent) session history
 set -euo pipefail
 
-VERSION="1.3.0"
+VERSION="1.4.0"
 COL=pi-history
 MD="$HOME/.pi/agent/sessions-md"
 SELF="$(basename "$0")"
@@ -22,6 +22,8 @@ USAGE
   $SELF show <file> [line] [query]
                                open a transcript in nvim (read-only), centered
                                on <line> with [query] highlighted; bat if piped
+  $SELF resume <file>          resume the pi session for this transcript
+                               (cd to the session's cwd and run `pi --session`)
   $SELF export [-t]            (re)export sessions to markdown
   $SELF -v --reindex <query>   rebuild the semantic index, then search
   $SELF --help | --version
@@ -44,6 +46,7 @@ EXAMPLES
 
 KEYS (fzf picker)
   enter  open the selected match in the transcript    esc  cancel
+  ctrl-o  resume the selected session in pi
   ctrl-r  refresh the semantic index (semantic mode)
   type to narrow further (fuzzy)                      mouse wheel / shift+↓  scroll preview
 
@@ -86,12 +89,13 @@ labelize() {  # $3: label for the home dir (path with / swapped for -)
 }
 
 fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
-  local rows="$1" q="$2" footer="$3" bind="${4:-}" sel f l
+  local rows="$1" q="$2" footer="$3" bind="${4:-}" sel key f l
   if ! command -v fzf >/dev/null || ! [ -t 0 ]; then
     printf '%s\n' "$rows"; exit 0
   fi
   sel=$(fzf --ansi --prompt="sessions> " --height=90% --reverse --border=rounded \
         --delimiter=$'\t' --with-nth=1,4 --preview-window="right:55%" \
+        --expect=ctrl-o \
         --color="header:italic,label:blue" \
         --border-label="$footer" --border-label-pos=0:bottom \
         ${bind:+--bind="$bind"} \
@@ -99,7 +103,10 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
                    bat --color=always --style=numbers --language=md \
                        -r \"\$l:\" --highlight-line={3} \"$MD/\"{2} " \
         <<< "$rows") || exit 0
+  key=$(head -n1 <<< "$sel"); sel=$(sed '1d' <<< "$sel")
+  [ -n "$sel" ] || exit 0
   IFS=$'\t' read -r _ f l _ <<< "$sel"
+  if [ "$key" = ctrl-o ]; then exec "$0" resume "$MD/$f"; fi
   exec "$0" show "$MD/$f" "$l" "$q"
 }
 
@@ -176,6 +183,14 @@ case "${1:-}" in
   export)
     shift; exec "$EXPORT" "$@"
     ;;
+  resume)
+    f="${2:-}"; [ -f "$f" ] || { usage >&2; exit 1; }
+    rel="${f#"$MD/"}"; rel="${rel%.md}"
+    jsonl="$HOME/.pi/agent/sessions/$rel.jsonl"
+    [ -f "$jsonl" ] || { echo "no session file for $f" >&2; exit 1; }
+    cwd=$(sed -n '1s/^_session cwd: \(.*\)_$/\1/p' "$f")
+    cd "${cwd:-$PWD}" && exec pi --session "$jsonl"
+    ;;
   --rows-v)  # internal: semantic rows for ctrl-r reload
     shift
     refresh=""
@@ -202,7 +217,7 @@ case "${1:-}" in
     escq=$(printf '%q' "$q")
     limstr=${limitargs[*]+"${limitargs[*]}"}
     fzf_pick "$rows" "$q" \
-      "enter: open at match · esc: cancel · ctrl-r: refresh index · index: ${age:-unknown}" \
+      "enter: open · ctrl-o: resume · esc: cancel · ctrl-r: refresh index · index: ${age:-unknown}" \
       "ctrl-r:reload($SELF --rows-v --refresh $escq $limstr)"
     ;;
   "")  usage >&2; exit 1 ;;
@@ -240,6 +255,6 @@ case "${1:-}" in
     [ -n "$rows" ] || { echo "no matches for '$q'" >&2; exit 1; }
     [ $ALL = 1 ] && N=999999
     rows=$(echo "$rows" | LC_ALL=C sort | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
-    fzf_pick "$rows" "$q" "enter: open at match · esc: cancel"
+    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · esc: cancel"
     ;;
 esac
