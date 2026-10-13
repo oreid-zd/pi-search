@@ -109,10 +109,10 @@ labelize() {  # $3: label for the home dir (path with / swapped for -)
       if (!fixed) { s=tolower(t)
         while ((i=index(s,q))) { c++; s=substr(s,i+length(q)) } }
       hits=fixed ? "" : c "x"
-      lab=sprintf("\033[36m%-18s\033[0m \033[2m%-10s\033[0m \033[%sm%s\033[0m \033[33m%-4s\033[0m", \
+      lab=sprintf("\033[36m%-18s\033[0m \033[2m%-10s\033[0m \033[%sm%s\033[0m \033[33m%-3s\033[0m", \
                   r, $3, (kind=="s" ? "33" : "2"), kind, hits)
       if (!fixed) t=sprintf("%4s: %s", l, t)
-      printf "%04d:%06d:%s\t%s\t%s\t%s\n", 9999-c, NR, lab, p, l, t }'
+      printf "%04d:%06d:%s %s\t%s\t%s\n", 9999-c, NR, lab, t, p, l }'
 }
 
 # distinct_rows: first (strongest) row per session file; input must be pre-sorted
@@ -141,7 +141,7 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind  $5=prompt
     printf '%s\n' "$rows"; exit 0
   fi
   sel=$(fzf --ansi --prompt="$prompt> " --height=90% --reverse --border=rounded \
-        --delimiter=$'\t' --with-nth=1,4 --preview-window="right:55%" \
+        --delimiter=$'\t' --with-nth=1 --preview-window="right:55%" \
         --expect=ctrl-o \
         --bind='ctrl-/:toggle-preview' \
         --listen \
