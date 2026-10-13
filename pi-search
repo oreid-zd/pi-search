@@ -105,10 +105,11 @@ labelize() {  # $3: label for the home dir (path with / swapped for -)
       if (r=="") r="session"
       sub(/^zendesk-/, "", r); if (length(r) > 18) r=substr(r, 1, 17) "…"
       kind=(p ~ /\/subagent-artifacts\/|\/run-0\//) ? "s" : "a"
-      lab=sprintf("\033[36m%s \033[%sm%s\033[0m \033[2m%s\033[0m", r, (kind=="s" ? "33" : "2"), kind, $3)
       c=0
-      if (!fixed) { lc=tolower($0); s=lc
+      if (!fixed) { s=tolower(t)
         while ((i=index(s,q))) { c++; s=substr(s,i+length(q)) } }
+      lab=sprintf("\033[36m%s \033[%sm%s\033[0m \033[2m%s\033[0m", r, (kind=="s" ? "33" : "2"), kind, $3)
+      if (!fixed) lab=lab sprintf(" \033[33m×%d\033[0m", c)
       printf "%04d:%06d:%s\t%s\t%s\t%s\n", 9999-c, NR, lab, p, l, t }'
 }
 
@@ -132,12 +133,12 @@ copy_file() {
 # clears the header ~3s later through fzf's --listen port (FZF_PORT)
 CLEAR="execute-silent[(sleep 3; curl -s -XPOST localhost:\$FZF_PORT -d 'change-header()') >/dev/null 2>&1 &]"
 
-fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
-  local rows="$1" q="$2" footer="$3" bind="${4:-}" sel key f l
+fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind  $5=prompt
+  local rows="$1" q="$2" footer="$3" bind="${4:-}" prompt="${5:-sessions}" sel key f l
   if ! command -v fzf >/dev/null || ! [ -t 0 ]; then
     printf '%s\n' "$rows"; exit 0
   fi
-  sel=$(fzf --ansi --prompt="sessions> " --height=90% --reverse --border=rounded \
+  sel=$(fzf --ansi --prompt="$prompt> " --height=90% --reverse --border=rounded \
         --delimiter=$'\t' --with-nth=1,4 --preview-window="right:55%" \
         --expect=ctrl-o \
         --bind='ctrl-/:toggle-preview' \
@@ -272,7 +273,8 @@ case "${1:-}" in
     limstr=${limitargs[*]+"${limitargs[*]}"}
     fzf_pick "$rows" "$q" \
       "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · ctrl-/: preview · esc: cancel · ctrl-r: refresh index · index: ${age:-unknown}" \
-      "ctrl-r:reload($SELF --rows-v --refresh $escq $limstr $distflag)"
+      "ctrl-r:reload($SELF --rows-v --refresh $escq $limstr $distflag)" \
+      "sessions (best match first)"
     ;;
   "")  usage >&2; exit 1 ;;
   *)   # keyword search — rows ordered by match strength, default top 5
@@ -308,6 +310,6 @@ case "${1:-}" in
     [ -n "$rows" ] || { echo "no matches for '$q'" >&2; exit 1; }
     [ $ALL = 1 ] && N=999999
     rows=$(echo "$rows" | LC_ALL=C sort | { [ $DISTINCT = 1 ] && distinct_rows || cat; } | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
-    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · ctrl-/: preview · esc: cancel"
+    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · ctrl-/: preview · esc: cancel" "" "sessions (most hits first)"
     ;;
 esac

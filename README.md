@@ -62,6 +62,12 @@ until a session is a week old, then the date. Files without a timestamp in their
 name use the source session's last-modified time. In semantic mode rows also show
 a match score, color-coded yellow → orange → red as relevance climbs.
 
+Keyword rows show `×N`: how many times the query appears in that row's text, and
+the picker is sorted by it. Ties go to the session with more total hits, then to
+line order. Semantic rows keep qmd's score order, which the percentage shows.
+Counts only cover the visible snippet, so a second hit past column 110 of a line
+is not counted.
+
 ### Keys
 
 | key | action |
