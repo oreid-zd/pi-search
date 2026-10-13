@@ -6,25 +6,27 @@ Set Theme {"background": "#16161e", "foreground": "#c0caf5", "cursor": "#c0caf5"
 Set Padding 30
 
 Set Shell zsh
-# recorded with: PATH=/tmp/pisearch-demo-home/bin:$PATH vhs docs/demo.tape
-# (the PATH shim points pi-search at the fabricated demo corpus, not real sessions)
-Type "pi-search 'redis'"
+# recorded with: vhs docs/demo.tape
+# A wrapper in /tmp/pisearch-demo-bin points HOME at a fabricated corpus (acme-* repos); no real sessions appear.
+Hide
+Type "export PATH=/tmp/pisearch-demo-bin:$PATH"
+Enter
+Type "clear"
+Enter
+Show
+Sleep 0.5s
+Type "pi-search -d redis"
 Sleep 0.5s
 Enter
-Sleep 3.5s
+Sleep 3s
+Down
+Sleep 1s
 Down
 Sleep 1.2s
-Down
-Sleep 1.5s
+Ctrl+T
+Sleep 3.5s
 Enter
 Sleep 2.5s
 Type ":q"
 Enter
-Sleep 0.8s
-Type "pi-search -v 'why is the dashboard slow'"
-Enter
-Sleep 8s
-Down
-Sleep 1.5s
-Escape
 Sleep 1s
