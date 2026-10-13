@@ -103,13 +103,15 @@ labelize() {  # $3: label for the home dir (path with / swapped for -)
       if (r ~ /-Code-/) { sub(/^.*-Code-/, "", r); sub(/--\/.*/, "", r) }
       else { sub(/--\/.*/, "", r); r=(r==hl) ? "~" : r }
       if (r=="") r="session"
-      sub(/^zendesk-/, "", r); if (length(r) > 18) r=substr(r, 1, 17) "…"
+      sub(/^zendesk-/, "", r); if (length(r) > 18) r=substr(r, 1, 17) "~"
       kind=(p ~ /\/subagent-artifacts\/|\/run-0\//) ? "s" : "a"
       c=0
       if (!fixed) { s=tolower(t)
         while ((i=index(s,q))) { c++; s=substr(s,i+length(q)) } }
-      lab=sprintf("\033[36m%s \033[%sm%s\033[0m \033[2m%s\033[0m", r, (kind=="s" ? "33" : "2"), kind, $3)
-      if (!fixed) lab=lab sprintf(" \033[33m×%d\033[0m", c)
+      hits=fixed ? "" : c "x"
+      lab=sprintf("\033[36m%-18s\033[0m \033[2m%-10s\033[0m \033[%sm%s\033[0m \033[33m%-4s\033[0m", \
+                  r, $3, (kind=="s" ? "33" : "2"), kind, hits)
+      if (!fixed) t=sprintf("%4s: %s", l, t)
       printf "%04d:%06d:%s\t%s\t%s\t%s\n", 9999-c, NR, lab, p, l, t }'
 }
 
@@ -302,7 +304,7 @@ case "${1:-}" in
                    { p=$0; sub(/:.*/, "", p)
                      rest=$0; sub(/^[^:]*:/, "", rest)
                      l=rest; sub(/:.*/, "", l)
-                     t=rest; sub(/^[^:]*:[0-9]+:/, "", t)
+                     t=rest; sub(/^[0-9]+:/, "", t)
                      gsub(/\t/, " ", t)
                      print p "\t" l "\t" age "\t" t }' \
                | labelize 0 "$q" "-$(printf %s "$HOME" | sed 's|/|-|g')" || true
