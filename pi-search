@@ -29,7 +29,7 @@ USAGE
   $SELF --help | --version
 
 SEARCH FLAGS
-  -n <N>        show top N matches (default 5)
+  -n <N>        show top N matches (default 20)
   --all         show every match
   -t, --tool-results
                 include tool results — by default only user and assistant
@@ -164,7 +164,7 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind  $5=prompt
 
 # parse -n/--all/-t flags anywhere in the args; non-flag args go to REST[]
 parse_flags() {
-  N=5; ALL=0; TR=0; DISTINCT=0
+  N=20; ALL=0; TR=0; DISTINCT=0
   REST=()
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -279,7 +279,7 @@ case "${1:-}" in
       "sessions (best match first)"
     ;;
   "")  usage >&2; exit 1 ;;
-  *)   # keyword search — rows ordered by match strength, default top 5
+  *)   # keyword search — rows ordered by match strength, default top 20
     parse_flags "$@"
     q="${REST[0]:-}"
     [ -n "$q" ] || { usage >&2; exit 1; }
