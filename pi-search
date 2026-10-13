@@ -119,10 +119,12 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
   fi
   sel=$(fzf --ansi --prompt="sessions> " --height=90% --reverse --border=rounded \
         --delimiter=$'\t' --with-nth=1,4 --preview-window="right:55%" \
-        --expect=ctrl-o,ctrl-t,ctrl-x,ctrl-v \
+        --expect=ctrl-o,ctrl-v \
         --color="header:italic,label:blue" \
         --border-label="$footer" --border-label-pos=0:bottom \
         ${bind:+--bind="$bind"} \
+        --bind="ctrl-t:transform(\"$SELF\" copy \"$MD/\"{2} 2>/dev/null && echo 'change-header(✓ file copied to clipboard)' || echo 'change-header(copy failed)')" \
+        --bind="ctrl-x:transform(\"$SELF\" copy-path \"$MD/\"{2} 2>/dev/null && echo 'change-header(✓ path copied to clipboard)' || echo 'change-header(copy failed)')" \
         --preview="l={3}; if [ \"\$l\" -gt 5 ]; then l=\$((l-5)); fi; \
                    bat --color=always --style=numbers --language=md \
                        -r \"\$l:\" --highlight-line={3} \"$MD/\"{2} " \
@@ -132,8 +134,6 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
   IFS=$'\t' read -r _ f l _ <<< "$sel"
   case "$key" in
     ctrl-o) exec "$0" resume "$MD/$f" ;;
-    ctrl-t) exec "$0" copy "$MD/$f" ;;
-    ctrl-x) exec "$0" copy-path "$MD/$f" ;;
     ctrl-v) exec "$0" edit "$MD/$f" ;;
   esac
   exec "$0" show "$MD/$f" "$l" "$q"
@@ -226,8 +226,8 @@ case "${1:-}" in
   copy|copy-path|edit)
     f="${2:-}"; [ -f "$f" ] || { usage >&2; exit 1; }
     case "$1" in
-      copy) copy_file "$f" && echo "copied file: $f" >&2 ;;
-      copy-path) printf %s "$f" | pbcopy && echo "copied path: $f" >&2 ;;
+      copy) copy_file "$f" ;;
+      copy-path) printf %s "$f" | pbcopy ;;
       edit) edit_file "$f" ;;
     esac
     ;;
