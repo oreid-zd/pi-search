@@ -312,6 +312,6 @@ case "${1:-}" in
     [ -n "$rows" ] || { echo "no matches for '$q'" >&2; exit 1; }
     [ $ALL = 1 ] && N=999999
     rows=$(echo "$rows" | LC_ALL=C sort | { [ $DISTINCT = 1 ] && distinct_rows || cat; } | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
-    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · ctrl-/: preview · esc: cancel" "" "sessions (most hits first)"
+    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · ctrl-/: preview · esc: cancel" "" "sessions"
     ;;
 esac
