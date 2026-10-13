@@ -35,6 +35,8 @@ SEARCH FLAGS
                 include tool results — by default only user and assistant
                 messages are searched, i.e. what you see in pi
                 (keyword search only; the semantic index is always lean)
+  -d, --distinct
+                one row per session (its strongest match) instead of every hit
   -v            semantic search over the lean corpus; only meaningful results
                 for vague queries like "that caching argument"
 
@@ -42,11 +44,16 @@ EXAMPLES
   $SELF "redis timeout"              find where an error was discussed
   $SELF -n 20 --all refactor         everything mentioning refactor
   $SELF -t "stack trace"             also match tool/output text
+  $SELF -d "redis timeout"           one row per session
+  $SELF -v -d "that caching argument" distinct semantic matches
   $SELF -v "that caching argument"   when you don't know the words
 
 KEYS (fzf picker)
   enter  open the selected match in the transcript    esc  cancel
   ctrl-o  resume the selected session in pi
+  ctrl-t  copy the transcript file to the clipboard (pastes as a file)
+  ctrl-x  copy the transcript path to the clipboard
+  ctrl-v  open the transcript in your editor (PI_SEARCH_EDITOR, default: cmux open)
   ctrl-r  refresh the semantic index (semantic mode)
   type to narrow further (fuzzy)                      mouse wheel / shift+↓  scroll preview
 
@@ -88,6 +95,23 @@ labelize() {  # $3: label for the home dir (path with / swapped for -)
       printf "%04d:%06d:%s\t%s\t%s\t%s\n", 9999-c, NR, lab, p, l, t }'
 }
 
+# distinct_rows: first (strongest) row per session file; input must be pre-sorted
+distinct_rows() { awk -F'\t' '!seen[$2]++'; }
+
+# edit_file <file>: PI_SEARCH_EDITOR (e.g. "code -g") if set, else cmux's opener
+edit_file() {
+  if [ -n "${PI_SEARCH_EDITOR:-}" ]; then
+    local -a ed; read -ra ed <<< "$PI_SEARCH_EDITOR"; "${ed[@]}" "$1"
+  elif command -v cmux >/dev/null 2>&1; then cmux open "$1"
+  else open "$1"
+  fi
+}
+
+# copy_file <file>: put the file itself on the macOS clipboard
+copy_file() {
+  osascript -e 'on run argv' -e 'set the clipboard to (POSIX file (item 1 of argv))' -e 'end run' "$1"
+}
+
 fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
   local rows="$1" q="$2" footer="$3" bind="${4:-}" sel key f l
   if ! command -v fzf >/dev/null || ! [ -t 0 ]; then
@@ -95,7 +119,7 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
   fi
   sel=$(fzf --ansi --prompt="sessions> " --height=90% --reverse --border=rounded \
         --delimiter=$'\t' --with-nth=1,4 --preview-window="right:55%" \
-        --expect=ctrl-o \
+        --expect=ctrl-o,ctrl-t,ctrl-x,ctrl-v \
         --color="header:italic,label:blue" \
         --border-label="$footer" --border-label-pos=0:bottom \
         ${bind:+--bind="$bind"} \
@@ -106,19 +130,25 @@ fzf_pick() { # $1=rows  $2=query  $3=footer  $4=extra bind
   key=$(head -n1 <<< "$sel"); sel=$(sed '1d' <<< "$sel")
   [ -n "$sel" ] || exit 0
   IFS=$'\t' read -r _ f l _ <<< "$sel"
-  if [ "$key" = ctrl-o ]; then exec "$0" resume "$MD/$f"; fi
+  case "$key" in
+    ctrl-o) exec "$0" resume "$MD/$f" ;;
+    ctrl-t) exec "$0" copy "$MD/$f" ;;
+    ctrl-x) exec "$0" copy-path "$MD/$f" ;;
+    ctrl-v) exec "$0" edit "$MD/$f" ;;
+  esac
   exec "$0" show "$MD/$f" "$l" "$q"
 }
 
 # parse -n/--all/-t flags anywhere in the args; non-flag args go to REST[]
 parse_flags() {
-  N=5; ALL=0; TR=0
+  N=5; ALL=0; TR=0; DISTINCT=0
   REST=()
   while [ $# -gt 0 ]; do
     case "$1" in
       -n) N="$2"; shift 2 ;;
       --all) ALL=1; shift ;;
       -t|--tool-results) TR=1; shift ;;
+      -d|--distinct) DISTINCT=1; shift ;;
       *) REST+=("$1"); shift ;;
     esac
   done
@@ -128,11 +158,12 @@ parse_flags() {
 #   --refresh re-exports and rebuilds the qmd index first (slow)
 semantic_rows() {
   local q="$1"; shift
-  local refresh=""
+  local refresh="" distinct=""
   local -a limitargs=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --refresh) refresh=1 ;;
+      --distinct) distinct=1 ;;
       -n) limitargs+=(-n "$2"); shift ;;
       --all) limitargs+=(--all) ;;
     esac
@@ -156,7 +187,8 @@ semantic_rows() {
         (.snippet | gsub("@@[^@]*@@ *"; "") |
          gsub("\\([0-9]+ before, [0-9]+ after\\) *"; "") |
          gsub("\\s+"; " ") | .[0:110])' \
-    | labelize 1 "$q" "-$(printf %s "$HOME" | sed 's|/|-|g')"
+    | labelize 1 "$q" "-$(printf %s "$HOME" | sed 's|/|-|g')" \
+    | { [ -n "$distinct" ] && distinct_rows || cat; }
 }
 
 case "${1:-}" in
@@ -191,6 +223,14 @@ case "${1:-}" in
     cwd=$(sed -n '1s/^_session cwd: \(.*\)_$/\1/p' "$f")
     cd "${cwd:-$PWD}" && exec pi --session "$jsonl"
     ;;
+  copy|copy-path|edit)
+    f="${2:-}"; [ -f "$f" ] || { usage >&2; exit 1; }
+    case "$1" in
+      copy) copy_file "$f" && echo "copied file: $f" >&2 ;;
+      copy-path) printf %s "$f" | pbcopy && echo "copied path: $f" >&2 ;;
+      edit) edit_file "$f" ;;
+    esac
+    ;;
   --rows-v)  # internal: semantic rows for ctrl-r reload
     shift
     refresh=""
@@ -208,8 +248,9 @@ case "${1:-}" in
     parse_flags "$@"
     q="${REST[0]:-}"
     [ -n "$q" ] || { usage >&2; exit 1; }
-    if [ $ALL = 1 ]; then limitargs=(--all); else limitargs=(-n "$N"); fi
-    rows=$(semantic_rows "$q" ${limitargs[@]+"${limitargs[@]}"}) || true
+    if [ $ALL = 1 ] || [ $DISTINCT = 1 ]; then limitargs=(--all); else limitargs=(-n "$N"); fi
+    distflag=""; if [ $DISTINCT = 1 ]; then distflag=--distinct; fi
+    rows=$(semantic_rows "$q" ${limitargs[@]+"${limitargs[@]}"} $distflag) || true
     [ -n "$rows" ] || { echo "no semantic matches for '$q'" >&2; exit 1; }
     [ $ALL = 1 ] && N=999999
     rows=$(echo "$rows" | LC_ALL=C sort | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
@@ -217,8 +258,8 @@ case "${1:-}" in
     escq=$(printf '%q' "$q")
     limstr=${limitargs[*]+"${limitargs[*]}"}
     fzf_pick "$rows" "$q" \
-      "enter: open · ctrl-o: resume · esc: cancel · ctrl-r: refresh index · index: ${age:-unknown}" \
-      "ctrl-r:reload($SELF --rows-v --refresh $escq $limstr)"
+      "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · esc: cancel · ctrl-r: refresh index · index: ${age:-unknown}" \
+      "ctrl-r:reload($SELF --rows-v --refresh $escq $limstr $distflag)"
     ;;
   "")  usage >&2; exit 1 ;;
   *)   # keyword search — rows ordered by match strength, default top 5
@@ -254,7 +295,7 @@ case "${1:-}" in
            done)
     [ -n "$rows" ] || { echo "no matches for '$q'" >&2; exit 1; }
     [ $ALL = 1 ] && N=999999
-    rows=$(echo "$rows" | LC_ALL=C sort | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
-    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · esc: cancel"
+    rows=$(echo "$rows" | LC_ALL=C sort | { [ $DISTINCT = 1 ] && distinct_rows || cat; } | sed -n "1,${N}p" | LC_ALL=C cut -d: -f3-)
+    fzf_pick "$rows" "$q" "enter: open · ctrl-o: resume · ctrl-t/x: copy file/path · ctrl-v: edit · esc: cancel"
     ;;
 esac
