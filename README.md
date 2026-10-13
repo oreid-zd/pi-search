@@ -55,8 +55,9 @@ match.
 
 `ctrl-v` runs `$PI_SEARCH_EDITOR` with the path appended, e.g. `PI_SEARCH_EDITOR="code -g"`. Unset, it runs `cmux open` (or `open` outside cmux).
 
-Rows show `repo kind age`. `kind` is `primary` for your sessions and `subagent`
-for delegated runs (`subagent-artifacts/` and `run-0/`). Age is relative ("4d ago")
+Rows show `repo kind age`. `kind` is `a` for your own sessions and `s` for
+delegated subagent runs (`subagent-artifacts/` and `run-0/`). Repo names drop the
+`zendesk-` prefix and are capped at 18 characters. Age is relative ("4d ago")
 until a session is a week old, then the date. Files without a timestamp in their
 name use the source session's last-modified time. In semantic mode rows also show
 a match score, color-coded yellow → orange → red as relevance climbs.
@@ -72,6 +73,7 @@ a match score, color-coded yellow → orange → red as relevance climbs.
 | `ctrl-v` | open the transcript in your editor |
 | `esc` | cancel |
 | `ctrl-r` | refresh the semantic index (semantic mode) |
+| `ctrl-/` | show or hide the preview pane |
 | `n` / `N` | next / previous highlighted match (in nvim) |
 
 ## How it works
