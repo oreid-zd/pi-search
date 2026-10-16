@@ -124,7 +124,8 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 The tests use temporary session fixtures and mocked integrations, not your real
-history, semantic index, or clipboard.
+history, semantic index, or clipboard. See [the live integration results](docs/integration-checks.md)
+for the checks against real installed tools.
 
 ## Demo recording
 
