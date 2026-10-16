@@ -7,10 +7,13 @@ milliseconds, even across hundreds of sessions. `-v` adds optional semantic
 search ([qmd](https://github.com/tobilu/qmd) embeddings) for when you remember
 the conversation but not the words.
 
-Pick a hit and it opens the transcript in a read-only `nvim` viewport, centered
-on the match with every occurrence highlighted and `n`/`N` wired up.
+Pick a hit to resume the session, or press `ctrl-o` to open the transcript.
+By default it opens in a read-only `nvim` viewport, centered on the match with
+every occurrence highlighted and `n`/`N` wired up.
 
 ![pi-search keyword search, preview, and transcript viewer](docs/demo.gif)
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes and upgrade instructions.
 
 ## Requirements
 
@@ -32,8 +35,8 @@ Installs three scripts into `~/.local/bin`:
 | `pi-export-history` | incremental JSONL → markdown export (run automatically on every search) |
 | `pi-search-maintenance` | nightly prune + re-embed for the semantic index |
 
-macOS only for relative timestamps (`date -j`); everything else works anywhere
-the dependencies do.
+Search, export, and timestamps support macOS and GNU/Linux. Clipboard actions
+require macOS tools.
 
 ## Usage
 
@@ -42,26 +45,31 @@ pi-search "redis timeout"           # keyword search (ripgrep)
 pi-search -n 20 --all refactor      # top 20, or everything with --all
 pi-search -t "stack trace"          # include tool results (default: user+assistant only)
 pi-search -d "redis timeout"        # one row per session, its strongest match
+pi-search -p "redis"               # your sessions only, excluding subagent runs
 pi-search -v "that caching bug"     # semantic search (qmd embeddings)
 pi-search export                    # re-export all sessions to markdown
-pi-search resume <transcript.md>    # resume a session in pi (also: ctrl-o in the picker)
+pi-search resume <transcript.md>    # resume a session in pi (also: enter in the picker)
 pi-search -v --reindex "query"      # rebuild the semantic index first
 pi-search --help
 ```
 
 The picker is `fzf` — type to narrow further, arrow through results, preview
-pane scrolls the surrounding transcript. `enter` opens the transcript at the
-match.
+pane scrolls the surrounding transcript. `enter` resumes the selected session
+in pi; `ctrl-o` opens the transcript at the match.
 
-`ctrl-v` runs `$PI_SEARCH_EDITOR` with the path appended, e.g. `PI_SEARCH_EDITOR="code -g"`. Unset, it runs `cmux open` (or `open` outside cmux).
+Set `PI_SEARCH_EDITOR` to make `ctrl-o` use your editor instead, e.g.
+`PI_SEARCH_EDITOR="code -g"`. The editor receives only the transcript path, not
+the match location or query highlighting.
 
 Rows show `repo date kind hits`, then the line number and snippet, with columns
 padded so they line up. `kind` is `a` for your own sessions and `s` for
-delegated subagent runs (`subagent-artifacts/` and `run-0/`). Repo names drop the
-`zendesk-` prefix and are capped at 18 characters. Age is relative ("4d ago")
-until a session is a week old, then the date. Files without a timestamp in their
-name use the source session's last-modified time. In semantic mode rows also show
-a match score, color-coded yellow → orange → red as relevance climbs.
+delegated subagent runs (`subagent-artifacts/` and `run-N/`). `-p` (or
+`--parents-only`) keeps only `a` rows, in keyword or semantic mode; it also works
+with `-d` and `-t`. Repo names drop the `zendesk-` prefix and are capped at 18
+characters. Age is relative ("4d ago") until a session is a week old, then the
+date. Files without a timestamp in their name use the source session's
+last-modified time. In semantic mode rows also show a match score, color-coded
+yellow → orange → red as relevance climbs.
 
 Keyword rows show `Nx`: how many times the query appears in that row's text, and
 the picker is sorted by it. Ties go to the session with more total hits, then to
@@ -73,11 +81,10 @@ is not counted.
 
 | key | action |
 |---|---|
-| `enter` | open the match in the transcript viewer |
-| `ctrl-o` | resume the selected session in pi |
+| `enter` | resume the selected session in pi |
+| `ctrl-o` | open in `PI_SEARCH_EDITOR` if set, otherwise the match-aware viewer |
 | `ctrl-t` | copy the transcript file to the clipboard (paste it as a file) |
 | `ctrl-x` | copy the transcript path to the clipboard |
-| `ctrl-v` | open the transcript in your editor |
 | `esc` | cancel |
 | `ctrl-r` | refresh the semantic index (semantic mode) |
 | `ctrl-/` | show or hide the preview pane |
@@ -87,9 +94,10 @@ is not counted.
 
 1. `pi-export-history` converts `~/.pi/agent/sessions/**/*.jsonl` to markdown
    under `~/.pi/agent/sessions-md/`, skipping thinking blocks, tool plumbing,
-   and HTML blobs. Export is incremental (mtime-guarded), so repeated searches
-   only pay for new sessions. By default tool results are omitted — the corpus
-   matches what you see in pi; pass `-t` for a full-corpus export
+   and HTML blobs. Searchable text is kept in full; only displayed snippets are
+   shortened. Export is incremental (mtime-guarded), so repeated searches only
+   pay for new sessions or exporter updates. By default tool results are omitted;
+   pass `-t` for a full-corpus export
    (`sessions-md-full`).
 2. Keyword search is plain `ripgrep` over that markdown, ranked by hit count
    and match strength. No index to maintain, no daemon.
@@ -107,3 +115,24 @@ crontab -e
 ```
 
 Keyword search needs no cron — the export happens on every search.
+
+## Tests
+
+```sh
+bash tests/parents-only.sh
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+The tests use temporary session fixtures and mocked integrations, not your real
+history, semantic index, or clipboard. See [the live integration results](docs/integration-checks.md)
+for the checks against real installed tools.
+
+## Demo recording
+
+```sh
+bash docs/record-demo.sh
+```
+
+The recorder creates a temporary synthetic session history and removes it on
+exit. It uses the real picker, viewer, and pi resume without sending a model
+request or reading your own sessions. It does not change the clipboard.

@@ -6,10 +6,10 @@ Set Theme {"background": "#16161e", "foreground": "#c0caf5", "cursor": "#c0caf5"
 Set Padding 30
 
 Set Shell zsh
-# recorded with: vhs docs/demo.tape
-# A wrapper in /tmp/pisearch-demo-bin points HOME at a fabricated corpus (acme-* repos); no real sessions appear.
+# recorded with: docs/record-demo.sh
+Require "docs/demo-search"
 Hide
-Type "export PATH=/tmp/pisearch-demo-bin:$PATH"
+Type "alias pi-search='./docs/demo-search'"
 Enter
 Type "clear"
 Enter
@@ -18,15 +18,23 @@ Sleep 0.5s
 Type "pi-search -d redis"
 Sleep 0.5s
 Enter
-Sleep 3s
-Down
-Sleep 1s
-Down
-Sleep 1.2s
-Ctrl+T
-Sleep 3.5s
+Sleep 2.5s
+Escape
+Sleep 0.5s
+Type "pi-search -p -d redis"
 Enter
 Sleep 2.5s
+Down
+Sleep 1s
+Ctrl+O
+Sleep 4s
 Type ":q"
 Enter
+Sleep 0.5s
+Type "pi-search -p -d redis"
+Enter
+Sleep 2s
+Enter
+Sleep 4s
+Ctrl+D
 Sleep 1s
