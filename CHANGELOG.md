@@ -23,6 +23,8 @@
   about 110 characters.
 - Exporter updates invalidate cached markdown so existing transcripts pick up
   export fixes.
+- The re-recorded demo shows parent filtering, Ctrl+O viewing, and Enter resume
+  using synthetic sessions.
 
 ### Fixed
 
@@ -38,15 +40,17 @@
   and macOS `/var` symlinks.
 - Keyword ties keep the session's hit rank before comparing line order.
 - Semantic refresh uses the same row formatting, filtering, and result limits
-  as the initial search.
+  as the initial search. Embedding progress goes to stderr instead of appearing
+  as an extra search row.
 - Installation exports sessions before creating or updating the semantic index.
 - Maintenance finds its sibling exporter in custom install locations, creates a
   missing corpus, and keeps the corpus root when pruning empty directories.
 - Picker callbacks work when pi-search's directory is absent from `PATH`.
 - Session ages support BSD and GNU date/stat commands.
 - `--help` no longer executes the command shown in its usage text.
-- The demo tape requires its isolated wrapper and invokes it explicitly, rather
-  than falling back to an installed pi-search against real session history.
+- The demo recorder creates a temporary fixture history and requires its guarded
+  wrapper, rather than falling back to an installed pi-search against real
+  session history.
 
 ### Upgrading from 1.1.0
 
@@ -68,4 +72,4 @@ pi-search -v --reindex "query"
 ```
 
 Clipboard actions still require macOS. Query hit counts still cover only the
-visible snippet. The demo tape has changed, but the GIF has not been re-recorded.
+visible snippet.

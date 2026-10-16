@@ -125,3 +125,13 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 The tests use temporary session fixtures and mocked integrations, not your real
 history, semantic index, or clipboard.
+
+## Demo recording
+
+```sh
+bash docs/record-demo.sh
+```
+
+The recorder creates a temporary synthetic session history and removes it on
+exit. It uses the real picker, viewer, and pi resume without sending a model
+request or reading your own sessions. It does not change the clipboard.

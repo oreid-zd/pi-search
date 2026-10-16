@@ -10,6 +10,8 @@ import tempfile
 import time
 import unittest
 
+from fixtures import create_sessions
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -101,6 +103,7 @@ elif args[0] in ('update', 'embed') or args[:2] == ['collection', 'add']:
  corpus = Path(os.environ['HOME']) / '.pi/agent/sessions-md'
  assert corpus.is_dir(), 'corpus must exist before indexing'
  if os.environ.get('EXPECT_EXPORTED'): assert list(corpus.rglob('*.md')), 'export before indexing'
+ if args[0] == 'embed' and os.environ.get('QMD_EMBED_PROGRESS'): print('All content hashes already have embeddings.')
 elif args[0] == 'vsearch':
  rows = json.loads(Path(os.environ['SEMANTIC_FIXTURE']).read_text())
  if '--all' not in args: rows = rows[:int(args[args.index('-n')+1])]
@@ -349,6 +352,23 @@ shutil.copyfile(Path(os.environ['FIXTURE_ROOT']) / url.rsplit('/',1)[1], destina
         self.check_ok(self.run_command([str(ROOT / "pi-search-maintenance")]))
         self.assertTrue((self.home / ".pi/agent/sessions-md").is_dir())
 
+    def test_semantic_progress_stays_out_of_search_rows(self):
+        self.session()
+        self.qmd()
+        fixture = self.work / "semantic.json"
+        fixture.write_text(json.dumps([{"file": "qmd://pi-history/--repo--/parent.md",
+                                        "line": 5, "score": .8, "snippet": "redis"}]))
+        self.env.update(SEMANTIC_FIXTURE=str(fixture), QMD_EMBED_PROGRESS="1")
+        for args in (("-v", "--reindex", "-p", "-n", "1", "redis"),
+                     ("--rows-v", "--refresh", "redis", "-p", "-n", "1")):
+            with self.subTest(args=args):
+                result = self.cli(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(len(result.stdout.splitlines()), 1)
+                self.assertNotIn("already have embeddings", result.stdout)
+                self.assertIn("already have embeddings", result.stderr)
+                self.assertIn("\t--repo--/parent.md\t5", result.stdout)
+
     def test_picker_callbacks_work_without_pi_search_on_path(self):
         source = self.session("2020-01-01T00-00-00_parent")
         self.qmd()
@@ -390,11 +410,30 @@ sys.exit(1)
         preview = preview.replace("{2}", shlex.quote(parent)).replace("{3}", "3")
         self.assertIn("redis", self.check_ok(self.run_command(["/bin/sh", "-c", preview])))
 
+    def test_demo_fixture_contains_only_synthetic_sessions(self):
+        paths = create_sessions(self.home)
+        self.assertEqual(len(paths), 4)
+        self.assertTrue((self.home / ".pi-search-fixture").is_file())
+        self.assertEqual(sum("subagent-artifacts" in str(path) for path in paths), 1)
+        for path in paths:
+            entries = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertTrue(Path(entries[0]["cwd"]).is_relative_to(self.home.resolve()))
+            self.assertEqual(entries[1]["parentId"], None)
+            self.assertEqual(entries[-1]["message"]["role"], "assistant")
+
     def test_demo_fails_closed_without_isolated_wrapper(self):
         tape = (ROOT / "docs/demo.tape").read_text()
-        self.assertIn('Require "/tmp/pisearch-demo-bin/pi-search"', tape)
-        self.assertIn('Type "/tmp/pisearch-demo-bin/pi-search -d redis"', tape)
-        self.assertNotIn('Type "pi-search ', tape)
+        self.assertIn('Require "docs/demo-search"', tape)
+        self.assertIn("alias pi-search='./docs/demo-search'", tape)
+        self.assertIn('Type "pi-search -p -d redis"', tape)
+        self.env.pop("PI_SEARCH_DEMO_HOME", None)
+        result = self.run_command([str(ROOT / "docs/demo-search"), "redis"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PI_SEARCH_DEMO_HOME", result.stderr)
+        self.env["PI_SEARCH_DEMO_HOME"] = str(self.home)
+        result = self.run_command([str(ROOT / "docs/demo-search"), "redis"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing demo fixture", result.stderr)
 
 
 if __name__ == "__main__":

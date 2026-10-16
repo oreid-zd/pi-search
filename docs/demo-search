@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${PI_SEARCH_DEMO_HOME:?Run docs/record-demo.sh to create the isolated fixture}"
+[ -f "$PI_SEARCH_DEMO_HOME/.pi-search-fixture" ] || { echo 'missing demo fixture' >&2; exit 1; }
+export HOME="$PI_SEARCH_DEMO_HOME"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_CACHE_HOME="$HOME/.cache"
+export XDG_DATA_HOME="$HOME/.local/share" XDG_STATE_HOME="$HOME/.local/state"
+export PI_CODING_AGENT_DIR="$HOME/.pi/agent" PI_OFFLINE=1 PI_TELEMETRY=0
+unset PI_SEARCH_EDITOR
+exec "$(dirname "$0")/../pi-search" "$@"

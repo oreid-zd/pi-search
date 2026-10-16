@@ -196,7 +196,7 @@ semantic_rows() {
   done
   if [ $all = 1 ] || [ -n "$distinct" ] || [ $parents_only = 1 ]; then limitargs=(--all); else limitargs=(-n "$n"); fi
   [ $all = 1 ] && n=999999
-  [ -n "$refresh" ] && { "$EXPORT" >/dev/null; qmd update -c "$COL" >/dev/null; qmd embed -c "$COL"; }
+  [ -n "$refresh" ] && { "$EXPORT" >/dev/null; qmd update -c "$COL" >/dev/null; qmd embed -c "$COL" >&2; }
   qmd vsearch "$q" -c "$COL" ${limitargs[@]+"${limitargs[@]}"} --json 2>/dev/null \
     | jq -r '.[] |
         (.file | sub("^qmd://pi-history/";"")) as $f |
@@ -282,7 +282,7 @@ case "${1:-}" in
     if [ "${1:-}" = "--reindex" ]; then
       "$EXPORT" >/dev/null
       qmd update -c "$COL" >/dev/null
-      qmd embed -c "$COL"
+      qmd embed -c "$COL" >&2
       shift
     fi
     parse_flags "$@"

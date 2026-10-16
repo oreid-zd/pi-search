@@ -6,26 +6,35 @@ Set Theme {"background": "#16161e", "foreground": "#c0caf5", "cursor": "#c0caf5"
 Set Padding 30
 
 Set Shell zsh
-# recorded with: vhs docs/demo.tape
-# The required wrapper must set HOME to a fabricated corpus (acme-* repos).
-Require "/tmp/pisearch-demo-bin/pi-search"
+# recorded with: docs/record-demo.sh
+Require "docs/demo-search"
 Hide
+Type "alias pi-search='./docs/demo-search'"
+Enter
 Type "clear"
 Enter
 Show
 Sleep 0.5s
-Type "/tmp/pisearch-demo-bin/pi-search -d redis"
+Type "pi-search -d redis"
 Sleep 0.5s
 Enter
-Sleep 3s
+Sleep 2.5s
+Escape
+Sleep 0.5s
+Type "pi-search -p -d redis"
+Enter
+Sleep 2.5s
 Down
 Sleep 1s
-Down
-Sleep 1.2s
-Ctrl+T
-Sleep 3.5s
 Ctrl+O
-Sleep 2.5s
+Sleep 4s
 Type ":q"
 Enter
+Sleep 0.5s
+Type "pi-search -p -d redis"
+Enter
+Sleep 2s
+Enter
+Sleep 4s
+Ctrl+D
 Sleep 1s
