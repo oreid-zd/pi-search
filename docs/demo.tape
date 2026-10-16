@@ -7,15 +7,14 @@ Set Padding 30
 
 Set Shell zsh
 # recorded with: vhs docs/demo.tape
-# A wrapper in /tmp/pisearch-demo-bin points HOME at a fabricated corpus (acme-* repos); no real sessions appear.
+# The required wrapper must set HOME to a fabricated corpus (acme-* repos).
+Require "/tmp/pisearch-demo-bin/pi-search"
 Hide
-Type "export PATH=/tmp/pisearch-demo-bin:$PATH"
-Enter
 Type "clear"
 Enter
 Show
 Sleep 0.5s
-Type "pi-search -d redis"
+Type "/tmp/pisearch-demo-bin/pi-search -d redis"
 Sleep 0.5s
 Enter
 Sleep 3s
@@ -25,7 +24,7 @@ Down
 Sleep 1.2s
 Ctrl+T
 Sleep 3.5s
-Enter
+Ctrl+O
 Sleep 2.5s
 Type ":q"
 Enter

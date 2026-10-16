@@ -35,13 +35,16 @@ command -v bat  >/dev/null 2>&1 || echo "note: bat enables syntax-highlighted pr
 command -v nvim >/dev/null 2>&1 || echo "note: nvim enables the read-only transcript viewer — brew install neovim"
 
 if command -v qmd >/dev/null 2>&1; then
+  "$DEST_DIR/pi-export-history" >/dev/null
   if ! qmd collection list 2>/dev/null | grep -q "^pi-history"; then
     qmd collection add "$HOME/.pi/agent/sessions-md" --name pi-history
-    qmd embed -c pi-history
+  else
+    qmd update -c pi-history >/dev/null
   fi
+  qmd embed -c pi-history
 else
   echo "note: semantic search (-v) needs qmd — npm install -g @tobilu/qmd"
-  echo "      then: qmd collection add ~/.pi/agent/sessions-md --name pi-history && qmd embed -c pi-history"
+  echo "      then: $DEST_DIR/pi-export-history && qmd collection add ~/.pi/agent/sessions-md --name pi-history && qmd embed -c pi-history"
 fi
 
 cat <<'EOT'

@@ -17,30 +17,31 @@ else
   DST="$HOME/.pi/agent/sessions-md"
 fi
 
-n=0
-find "$SRC" -name '*.jsonl' | while read -r f; do
+mkdir -p "$DST"
+[ -d "$SRC" ] || { echo "exported to $DST"; exit 0; }
+find "$SRC" -name '*.jsonl' -print0 | while IFS= read -r -d '' f; do
   rel="${f#"$SRC"/}"; rel="${rel%.jsonl}"
   out="$DST/$rel.md"
   # incremental: skip sessions whose markdown is already current
-  [ -f "$out" ] && [ "$out" -nt "$f" ] && continue
+  [ -f "$out" ] && [ "$out" -nt "$f" ] && [ "$out" -nt "$0" ] && continue
   mkdir -p "$(dirname "$out")"
-  cwd=$(head -1 "$f" | jq -r '.cwd // empty' 2>/dev/null)
+  cwd=$(head -n1 "$f" | jq -r '.cwd // empty' 2>/dev/null) || continue
   jq -r --arg tr "$TR" 'select(.message != null and .message.content != null) | .message as $m |
     select($tr == "1" or $m.role != "toolResult") |
-    ($m.role | if . == "toolResult" then 200 else 2000 end) as $cap |
     [if ($m.content | type) == "string" then $m.content
-     else [$m.content[]?
-           | select(.type == "text") | .text
-           | select(test("<!DOCTYPE|<html"; "i") | not)
-           | if length > $cap then .[0:$cap] + " …[truncated]" else . end]
-          | join("\n")
-     end] | join("\n") | select(length > 0) | "## \($m.role)\n\n\(.)\n"' \
-    "$f" 2>/dev/null > "$out.tmp" || { rm -f "$out.tmp"; continue; }
-  if [ -s "$out.tmp" ]; then
-    [ -n "$cwd" ] && sed -i '' "1s|^|_session cwd: ${cwd}_\n\n|" "$out.tmp"
-    mv "$out.tmp" "$out" && n=$((n+1))
+     else $m.content[]? | select(.type == "text") | .text
+     end | select(test("<!DOCTYPE|<html"; "i") | not)] |
+    join("\n") | select(length > 0) | "## \($m.role)\n\n\(.)\n"' \
+    "$f" 2>/dev/null > "$out.body" || { rm -f "$out.body"; continue; }
+  if [ -s "$out.body" ]; then
+    {
+      [ -z "$cwd" ] || printf '_session cwd: %s_\n\n' "$cwd"
+      cat "$out.body"
+    } > "$out.tmp"
+    mv "$out.tmp" "$out"
   else
-    rm -f "$out.tmp"
+    rm -f "$out"
   fi
+  rm -f "$out.body"
 done
 echo "exported to $DST"
